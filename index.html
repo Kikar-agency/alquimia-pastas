@@ -34,8 +34,9 @@
   .line input{padding:6px 7px;border:1px solid var(--bord);border-radius:6px;font-size:12px;width:100%}
   .line .desc{margin-bottom:6px;font-weight:600}
   .line .frg{margin-bottom:6px;border-color:#bbf7d0;background:#f0fdf4}
-  .line .r2{display:grid;grid-template-columns:44px 62px 84px 26px;gap:6px;align-items:center}
+  .line .r2{display:grid;grid-template-columns:42px 54px 50px 74px 24px;gap:5px;align-items:end}
   .line .r2 .cap{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);text-align:center;display:block;margin-bottom:1px}
+  .line select{padding:6px 3px;border:1px solid var(--bord);border-radius:6px;font-size:12px;width:100%;background:#fff}
   .line .rem{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;height:30px;font-weight:700;align-self:end}
   .actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
   .actions .btn{flex:1;min-width:120px}
@@ -114,8 +115,6 @@
       <div class="fld"><label>Vendedor</label><input id="vendedor" value="VELAZQUEZ, MARTIN" oninput="render()"></div>
       <div class="fld"><label>CUIT</label><input id="cuit" value="20-40749969-8" oninput="render()"></div>
     </div>
-    <div class="fld"><label>Moneda (símbolo)</label><input id="moneda" value="$" oninput="render()" style="width:90px"></div>
-
     <div class="fld" style="margin-top:8px">
       <label>Agregar producto</label>
       <div class="adder">
@@ -182,6 +181,7 @@ const CAT=[
  {g:"Pastas esencia común", n:"Pasta jabón líquido común", p:"Bolsa", r:200, precio:98900},
  {g:"Pastas esencia común", n:"Pasta jabón líquido común", p:"Bolsa", r:100, precio:60400},
  {g:"Pastas esencia común", n:"Pasta jabón líquido común", p:"Bolsa", r:50, precio:34400},
+ {g:"Pastas esencia común", n:"Pasta neutra para suavizante", p:"", r:1000, precio:135, cur:"USD"},
  {g:"Detergentes concentrados", n:"Detergente Premium concentrado", p:"Bolsa", r:100, precio:67900},
  {g:"Detergentes concentrados", n:"Detergente Madre concentrado", p:"Bolsa", r:90, precio:66000},
  {g:"Kits y perfuminas", n:"Kit B. Textil", p:"", r:5, precio:9450},
@@ -191,6 +191,7 @@ const CAT=[
  {g:"Kits y perfuminas", n:"Líquido Lampazo", p:"", r:10, precio:43400},
  {g:"Kits y perfuminas", n:"Pack de Perfuminas (10 x 1 L)", p:"", r:400, precio:55000},
  {g:"Kits y perfuminas", n:"Kit Lavandina", p:"", r:200, precio:23500},
+ {g:"Envases", n:"Cuñete reforzado", p:"para 50 lts", r:50, precio:8500, env:true},
 ];
 
 let lines=[]; // {desc, rindeBase, cant, litros, precio}
@@ -203,7 +204,7 @@ function fmt(n){
   else { s=Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
   return (neg?'-':'')+s;
 }
-function cur(){ return (document.getElementById('moneda').value||'$').trim(); }
+function rlabel(env,litros){ return (env?'para ':'rinde ')+fmt(litros)+' lts'; }
 
 // poblar el select agrupado
 (function(){
@@ -213,7 +214,7 @@ function cur(){ return (document.getElementById('moneda').value||'$').trim(); }
     const og=document.createElement('optgroup'); og.label=g;
     groups[g].forEach(i=>{
       const it=CAT[i]; const o=document.createElement('option'); o.value=i;
-      o.textContent=`${it.n}${it.p?' · '+it.p:''} · rinde ${it.r} L · $${fmt(it.precio)}`;
+      o.textContent=`${it.n}${it.p?' · '+it.p:''} · ${rlabel(it.env,it.r)} · ${it.cur||'$'} ${fmt(it.precio)}`;
       og.appendChild(o);
     });
     sel.appendChild(og);
@@ -222,7 +223,7 @@ function cur(){ return (document.getElementById('moneda').value||'$').trim(); }
 
 function addFromSelect(){
   const i=+document.getElementById('prodSel').value; const it=CAT[i];
-  lines.push({desc:it.n+(it.p?' · '+it.p:''), frag:'', rindeBase:it.r, cant:1, litros:it.r, precio:it.precio, precioBase:it.precio});
+  lines.push({desc:it.n+(it.p?' · '+it.p:''), frag:'', rindeBase:it.r, cant:1, litros:it.r, precio:it.precio, precioBase:it.precio, cur:it.cur||'$', env:!!it.env});
   renderLines(); render();
 }
 function removeLine(i){ lines.splice(i,1); renderLines(); render(); }
@@ -238,6 +239,7 @@ function upd(i,field,val){
   else if(field==='precio'){ L.precio=parseFloat(val)||0; }
   else if(field==='desc'){ L.desc=val; }
   else if(field==='frag'){ L.frag=val; }
+  else if(field==='cur'){ L.cur=val; }
   render();  // solo refresca la boleta -> no se pierde el foco al tipear
 }
 function renderLines(){
@@ -249,7 +251,8 @@ function renderLines(){
       <input class="frg" placeholder="Fragancia / aroma (ej: Ariel, Skip)" value="${(L.frag||'').replace(/"/g,'&quot;')}" oninput="upd(${i},'frag',this.value)">
       <div class="r2">
         <div><span class="cap">Cant</span><input class="f-cant" type="number" step="1" min="0" value="${L.cant}" oninput="upd(${i},'cant',this.value)"></div>
-        <div><span class="cap">Rinde L</span><input class="f-lit" type="number" step="1" value="${L.litros}" oninput="upd(${i},'litros',this.value)"></div>
+        <div><span class="cap">${L.env?'Lts':'Rinde'}</span><input class="f-lit" type="number" step="1" value="${L.litros}" oninput="upd(${i},'litros',this.value)"></div>
+        <div><span class="cap">Mon</span><select class="f-cur" onchange="upd(${i},'cur',this.value)"><option ${L.cur!=='USD'?'selected':''}>$</option><option ${L.cur==='USD'?'selected':''}>USD</option></select></div>
         <div><span class="cap">Precio</span><input class="f-pre" type="number" step="1" value="${L.precio}" oninput="upd(${i},'precio',this.value)"></div>
         <button class="rem" onclick="removeLine(${i})">✕</button>
       </div>
@@ -263,21 +266,25 @@ function render(){
   document.getElementById('bCliente').textContent=document.getElementById('cliente').value||'—';
   document.getElementById('bFecha').textContent=fechaFmt(document.getElementById('fecha').value);
   document.getElementById('bPed').textContent=document.getElementById('pedido').value||'—';
-  const body=document.getElementById('bBody'); let tot=0;
+  const body=document.getElementById('bBody'); const totals={};
   if(!lines.length){ body.innerHTML='<tr><td colspan="3" class="empty">Agregá productos desde el panel de la izquierda.</td></tr>'; }
   else {
     body.innerHTML=lines.map(L=>{
-      tot+=Number(L.precio)||0;
+      const cc=L.cur||'$'; totals[cc]=(totals[cc]||0)+(Number(L.precio)||0);
       const frag=(L.frag||'').trim().replace(/</g,'&lt;');
       return `<tr>
         <td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${frag?`<div class="frag">Fragancia: ${frag}</div>`:''}</td>
-        <td class="rinde">rinde ${fmt(L.litros)} lts</td>
-        <td class="r tot">${cur()} ${fmt(L.precio)}</td>
+        <td class="rinde">${rlabel(L.env,L.litros)}</td>
+        <td class="r tot">${cc} ${fmt(L.precio)}</td>
       </tr>`;
     }).join('');
   }
-  document.getElementById('bTotal').textContent=cur()+' '+fmt(tot);
-  try{ localStorage.setItem('alq_boleta',JSON.stringify({v:document.getElementById('vendedor').value,c:document.getElementById('cuit').value,p:document.getElementById('pedido').value,m:cur()})); }catch(e){}
+  const keys=Object.keys(totals);
+  let th;
+  if(keys.length===0) th='$ 0';
+  else th=keys.map(k=>k+' '+fmt(totals[k])).join('<br>');
+  document.getElementById('bTotal').innerHTML=th;
+  try{ localStorage.setItem('alq_boleta',JSON.stringify({v:document.getElementById('vendedor').value,c:document.getElementById('cuit').value,p:document.getElementById('pedido').value})); }catch(e){}
 }
 function limpiar(){
   lines=[]; document.getElementById('cliente').value='';
@@ -304,7 +311,6 @@ function downloadPNG(){
     if(s.v)document.getElementById('vendedor').value=s.v;
     if(s.c)document.getElementById('cuit').value=s.c;
     if(s.p)document.getElementById('pedido').value=s.p;
-    if(s.m)document.getElementById('moneda').value=s.m;
   }catch(e){}
   renderLines(); render();
 })();
