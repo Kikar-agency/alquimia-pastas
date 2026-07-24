@@ -13,7 +13,7 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#eef1f5;color:var(--graf)}
   .wrap{max-width:1180px;margin:0 auto;padding:20px;display:grid;grid-template-columns:400px 1fr;gap:22px;align-items:start}
-  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}.controls{position:static!important}}
 
   /* ---------- panel de control ---------- */
   .controls{background:#fff;border:1px solid var(--bord);border-radius:14px;padding:18px;position:sticky;top:20px}
@@ -43,7 +43,7 @@
 
   /* ---------- BOLETA ---------- */
   .stage{display:flex;justify-content:center}
-  .boleta{background:#fff;width:760px;border:1px solid var(--bord);border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(20,30,50,.08)}
+  .boleta{background:#fff;width:760px;max-width:100%;border:1px solid var(--bord);border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(20,30,50,.08)}
   .b-top{display:flex;justify-content:space-between;align-items:flex-start;padding:26px 30px 18px}
   .b-logo img{height:82px;display:block}
   .b-vend{text-align:right;padding-top:6px}
@@ -70,11 +70,32 @@
   .b-strip{height:8px;background:var(--green)}
   .empty{padding:40px 30px;text-align:center;color:var(--gray);font-size:14px}
 
+  @media(max-width:560px){
+    .wrap{padding:12px;gap:14px}
+    .adder{flex-wrap:wrap}
+    .adder select{min-width:100%}
+    .b-top{padding:18px 16px 12px;flex-wrap:wrap;gap:10px}
+    .b-logo img{height:54px}
+    .b-vend{padding-top:0;text-align:right;flex:1}
+    .b-vend .name{font-size:16px}
+    .b-vend .lbl{letter-spacing:2px}
+    .b-vend .cuit{font-size:11px}
+    .b-meta{padding:10px 16px;flex-wrap:wrap;gap:4px 14px}
+    .b-meta .val{font-size:14px}
+    table.items thead th{padding:9px 16px;font-size:10px}
+    table.items tbody td{padding:12px 16px;font-size:13px}
+    table.items .rinde{font-size:12px}
+    table.items .frag{font-size:11.5px}
+    .b-foot{padding:16px 16px 20px}
+    .b-foot .ped{font-size:14px}
+    .b-foot .totlbl{margin-right:6px}
+    .b-foot .totval{font-size:20px}
+  }
   @media print{
     body{background:#fff}
     .controls,.actions{display:none!important}
     .wrap{display:block;padding:0}
-    .boleta{border:none;box-shadow:none;width:100%}
+    .boleta{border:none;box-shadow:none;width:100%;max-width:100%}
   }
 </style>
 </head>
@@ -265,12 +286,15 @@ function limpiar(){
 }
 function downloadPNG(){
   const node=document.getElementById('boleta');
-  html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(canvas=>{
+  const prevW=node.style.width, prevMax=node.style.maxWidth;
+  node.style.width='760px'; node.style.maxWidth='760px';   // exportar siempre a 760px, no importa la pantalla
+  html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true,width:760,windowWidth:900}).then(canvas=>{
+    node.style.width=prevW; node.style.maxWidth=prevMax;
     const a=document.createElement('a');
     const cli=(document.getElementById('cliente').value||'cliente').replace(/[^a-z0-9]/gi,'_');
     a.download='Boleta_Alquimia_'+cli+'.png';
     a.href=canvas.toDataURL('image/png'); a.click();
-  });
+  }).catch(e=>{ node.style.width=prevW; node.style.maxWidth=prevMax; alert('No se pudo generar la imagen (revisá la conexión a internet).'); });
 }
 
 // init
