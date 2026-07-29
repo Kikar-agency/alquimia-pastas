@@ -91,7 +91,14 @@
     .b-foot .ped{font-size:14px}
     .b-foot .totlbl{margin-right:6px}
     .b-foot .totval{font-size:20px}
+    .controls input,.controls select{font-size:16px}
   }
+  .ovl{position:fixed;inset:0;background:rgba(15,23,42,.9);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+  .ovl img{max-width:100%;max-height:72vh;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .ovl .msg{color:#fff;font-size:14px;margin:14px 0;text-align:center;max-width:520px;line-height:1.5}
+  .ovl .orow{display:flex;gap:10px}
+  .ovl a,.ovl button{background:var(--greenD);color:#fff;border:none;border-radius:8px;padding:12px 20px;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer}
+  .ovl button.close{background:#334155}
   @media print{
     body{background:#fff}
     .controls,.actions{display:none!important}
@@ -291,16 +298,34 @@ function limpiar(){
   const ped=document.getElementById('pedido'); ped.value=(parseInt(ped.value)||0)+1;
   renderLines(); render();
 }
+function openOverlay(url,fname){
+  const o=document.createElement('div'); o.className='ovl';
+  o.innerHTML=`<img src="${url}" alt="boleta"><div class="msg">Mantené <b>presionada la imagen</b> para guardarla o compartirla por WhatsApp.</div><div class="orow"><a href="${url}" download="${fname}">⬇ Descargar</a><button class="close">Cerrar</button></div>`;
+  o.querySelector('.close').onclick=()=>{ o.remove(); try{URL.revokeObjectURL(url);}catch(e){} };
+  document.body.appendChild(o);
+}
 function downloadPNG(){
   const node=document.getElementById('boleta');
   const prevW=node.style.width, prevMax=node.style.maxWidth;
-  node.style.width='760px'; node.style.maxWidth='760px';   // exportar siempre a 760px, no importa la pantalla
+  node.style.width='760px'; node.style.maxWidth='760px';
   html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true,width:760,windowWidth:900}).then(canvas=>{
     node.style.width=prevW; node.style.maxWidth=prevMax;
-    const a=document.createElement('a');
     const cli=(document.getElementById('cliente').value||'cliente').replace(/[^a-z0-9]/gi,'_');
-    a.download='Boleta_Alquimia_'+cli+'.png';
-    a.href=canvas.toDataURL('image/png'); a.click();
+    const fname='Boleta_Alquimia_'+cli+'.png';
+    const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    canvas.toBlob(function(blob){
+      if(!blob){ alert('No se pudo generar la imagen.'); return; }
+      const url=URL.createObjectURL(blob);
+      const file=new File([blob],fname,{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:'Boleta Alquimia'}).catch(()=>openOverlay(url,fname));
+      } else if(isMobile){
+        openOverlay(url,fname);
+      } else {
+        const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),8000);
+      }
+    },'image/png');
   }).catch(e=>{ node.style.width=prevW; node.style.maxWidth=prevMax; alert('No se pudo generar la imagen (revisá la conexión a internet).'); });
 }
 
