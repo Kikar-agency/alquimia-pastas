@@ -44,22 +44,22 @@
   .b-top{display:flex;justify-content:space-between;align-items:flex-start;padding:26px 30px 18px}
   .b-logo img{height:82px;display:block}
   .b-vend{text-align:right;padding-top:6px}
-  .b-vend .lbl{font-size:10px;letter-spacing:3px;color:var(--gray);text-transform:uppercase}
-  .b-vend .name{font-size:22px;font-weight:800;color:var(--graf);margin:6px 0 2px}
+  .b-vend .lbl{font-size:10px;color:var(--gray);text-transform:uppercase}
+  .b-vend .name{font-size:22px;font-weight:700;color:var(--graf);margin:6px 0 2px}
   .b-vend .cuit{font-size:12px;color:var(--gray)}
   .b-meta{display:flex;justify-content:space-between;padding:14px 30px;border-top:1px solid var(--bord);border-bottom:1px solid var(--bord);background:#fcfdfe;flex-wrap:wrap;gap:4px 14px}
-  .b-meta .lbl{font-size:10px;letter-spacing:2px;color:var(--gray);text-transform:uppercase;margin-right:8px}
+  .b-meta .lbl{font-size:10px;color:var(--gray);text-transform:uppercase;margin-right:8px}
   .b-meta .val{font-size:15px;font-weight:700;color:var(--graf)}
   table.items{width:100%;border-collapse:collapse}
-  table.items thead th{background:var(--hl);color:var(--graf);font-size:11px;letter-spacing:1px;text-transform:uppercase;text-align:left;padding:12px 30px;font-weight:700}
+  table.items thead th{background:var(--hl);color:var(--graf);font-size:11px;text-transform:uppercase;text-align:left;padding:12px 30px;font-weight:700}
   table.items thead th.r{text-align:right}table.items thead th.c{text-align:center}
   table.items tbody td{padding:14px 30px;border-bottom:1px solid #eef1f4;font-size:14px;vertical-align:middle}
   table.items td.r{text-align:right}table.items td.c{text-align:center}
   table.items .pname{font-weight:600}table.items .tot{font-weight:700}
   .b-foot{display:flex;justify-content:space-between;align-items:center;padding:20px 30px 26px}
-  .b-foot .ped{font-size:16px;font-weight:800;letter-spacing:.5px}
-  .b-foot .totlbl{font-size:11px;letter-spacing:2px;color:var(--gray);text-transform:uppercase;margin-right:12px}
-  .b-foot .totval{font-size:26px;font-weight:800;color:var(--greenD)}
+  .b-foot .ped{font-size:16px;font-weight:700}
+  .b-foot .totlbl{font-size:11px;color:var(--gray);text-transform:uppercase;margin-right:12px}
+  .b-foot .totval{font-size:26px;font-weight:700;color:var(--greenD)}
   .b-strip{height:8px;background:var(--green)}
   .empty{padding:40px 30px;text-align:center;color:var(--gray)}
   /* costos */
@@ -145,7 +145,7 @@
       </div>
       <div class="b-meta"><div><span class="lbl">Cliente:</span><span class="val" id="bCliente">—</span></div><div><span class="lbl">Fecha:</span><span class="val" id="bFecha">—</span></div></div>
       <table class="items"><thead><tr><th class="c">Cant.</th><th>Descripción</th><th class="r">P. Unitario</th><th class="r">Total</th></tr></thead><tbody id="bBody"></tbody></table>
-      <div class="b-foot"><div class="ped">PEDIDO N° <span id="bPed">1</span></div><div style="text-align:right"><span class="totlbl">Total a pagar (pesos)</span><span class="totval" id="bTotal">$ 0</span><div id="bSub" style="font-size:11px;color:var(--gray);margin-top:4px;font-weight:600"></div></div></div>
+      <div class="b-foot"><div class="ped">PEDIDO N° <span id="bPed">1</span></div><div style="text-align:right"><span class="totlbl">IMPORTE A TRANSFERIR (PESOS)</span><span class="totval" id="bTotal">$ 0</span><div id="bSub" style="font-size:11px;color:var(--gray);margin-top:4px;font-weight:600"></div></div></div>
       <div class="b-strip"></div>
     </div>
   </div>
@@ -286,15 +286,17 @@ function render(){
   document.getElementById('bCliente').textContent=document.getElementById('cliente').value||'—';
   document.getElementById('bFecha').textContent=fechaFmt(document.getElementById('fecha').value);
   document.getElementById('bPed').textContent=document.getElementById('pedido').value||'—';
+  const d=parseFloat(document.getElementById('dolar').value)||0;
   const body=document.getElementById('bBody'); let tUSD=0,tARS=0;
   if(!lines.length){ body.innerHTML='<tr><td colspan="4" class="empty">Agregá productos desde el panel de la izquierda.</td></tr>'; }
   else { body.innerHTML=lines.map(L=>{
-      const c=L.cur||'$'; const sub=(Number(L.cant)||0)*(Number(L.precio)||0);
+      const c=L.cur||'$'; const cant=Number(L.cant)||0; const precio=Number(L.precio)||0; const sub=cant*precio;
       if(c==='USD') tUSD+=sub; else tARS+=sub;
-      const cn=Number(L.cant)||0; const cantTxt=(cn%1===0?String(cn):String(cn).replace('.',','));
-      return `<tr><td class="c">${cantTxt}</td><td class="pname">${(L.desc||'').replace(/</g,'&lt;')}</td>
-        <td class="r">${money(c,L.precio)}</td><td class="r tot">${money(c,sub)}</td></tr>`; }).join(''); }
-  const d=parseFloat(document.getElementById('dolar').value)||0;
+      const puP=c==='USD'?precio*d:precio; const subP=c==='USD'?sub*d:sub;
+      const cantTxt=(cant%1===0?String(cant):String(cant).replace('.',','));
+      const ref=c==='USD'?`<div style="font-size:10px;color:#94a3b8;margin-top:2px">USD ${fmt(precio)} c/u · dólar ${fmtP(d)}</div>`:'';
+      return `<tr><td class="c">${cantTxt}</td><td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${ref}</td>
+        <td class="r">$ ${fmtP(puP)}</td><td class="r tot">$ ${fmtP(subP)}</td></tr>`; }).join(''); }
   const totPesos=tARS + tUSD*d;
   const parts=[];
   if(tARS) parts.push('Pesos: $ '+fmtP(tARS));
@@ -326,8 +328,9 @@ function downloadPNG(){
   const reset=()=>{ window.__gen=false; if(btn){ btn.textContent=old; btn.disabled=false; } };
   const node=document.getElementById('boleta'); const pw=node.style.width,pm=node.style.maxWidth;
   node.style.width='760px'; node.style.maxWidth='760px';
+  const nols=document.createElement('style'); nols.textContent='#boleta *{letter-spacing:normal!important}'; document.head.appendChild(nols);
   html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true,width:760,windowWidth:900}).then(c=>{
-    node.style.width=pw; node.style.maxWidth=pm;
+    node.style.width=pw; node.style.maxWidth=pm; try{nols.remove();}catch(e){}
     const cli=(document.getElementById('cliente').value||'cliente').replace(/[^a-z0-9]/gi,'_');
     const fname='Boleta_'+cli+'.png';
     const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -338,7 +341,7 @@ function downloadPNG(){
       else { const a=document.createElement('a'); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),8000); }
       reset();
     },'image/png');
-  }).catch(e=>{ node.style.width=pw; node.style.maxWidth=pm; alert('No se pudo generar la imagen (revisá tu conexión a internet).'); reset(); });
+  }).catch(e=>{ node.style.width=pw; node.style.maxWidth=pm; try{nols.remove();}catch(_){} alert('No se pudo generar la imagen (revisá tu conexión a internet).'); reset(); });
 }
 // ----- costos -----
 function renderCost(){
