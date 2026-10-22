@@ -34,6 +34,7 @@
   .line{border:1px solid var(--bord);border-radius:9px;padding:8px;margin-bottom:8px;background:#fbfcfe}
   .line input,.line select{padding:6px 6px;border:1px solid var(--bord);border-radius:6px;font-size:12px;width:100%;background:#fff}
   .line .desc{margin-bottom:6px;font-weight:600}
+  .line .frg{margin-bottom:6px;border-color:#bbf7d0;background:#f0fdf4}
   .line .r2{display:grid;grid-template-columns:44px 1fr 46px 66px 22px;gap:4px;align-items:end}
   .line .r2 .cap{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:var(--gray);text-align:center;display:block;margin-bottom:1px}
   .line .rem{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;height:30px;font-weight:700;align-self:end}
@@ -169,6 +170,7 @@ let lines=[];
 function fmt(n){ n=Number(n)||0; return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtP(n){ n=Math.round(Number(n)||0); return n.toLocaleString('es-AR'); }
 function money(c,n){ return c==='USD' ? 'USD '+fmt(n) : '$ '+fmtP(n); }
+function na(x){ return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
 function toNum(s){ return typeof s==='number'?s:parseFloat(String(s).replace(',','.'))||0; }
 
 // ===== Monedas, parche MP8, pastas y suavitek =====
@@ -207,18 +209,19 @@ const PASTAS=[
  ['Kit Lavandina — para 200 lts',23500]
 ].map(x=>({nom:x[0],precio:x[1],cur:'$'}));
 PASTAS.push({nom:'SUAVITEK — pasta suavizante para 1000 lts',precio:120,cur:'USD'});
+PASTAS.push({nom:'Cuñete reforzado (envase) — para 50 lts',precio:8500,cur:'$'});
 
 // ----- catálogo buscable -----
 const CATALOG=[];
 DATA.esencias.forEach((e,i)=>CATALOG.push({type:'e',idx:i,cat:'e',nom:e.nom,extra:e.cod,
-  price:`x lt USD ${e.min}`, s:(e.nom+' '+e.cod).toLowerCase()}));
+  price:`x lt USD ${e.min}`, s:na(e.nom+' '+e.cod)}));
 DATA.mp7.forEach((m,i)=>CATALOG.push({type:'m',idx:i,cat:'m',nom:m.nom,extra:m.uni,
-  price:money(m.cur||'USD',m.mp7), s:m.nom.toLowerCase()}));
+  price:money(m.cur||'USD',m.mp7), s:na(m.nom)}));
 PASTAS.forEach((p,i)=>CATALOG.push({type:'p',idx:i,cat:'p',nom:p.nom,extra:'',
-  price:money(p.cur,p.precio), s:p.nom.toLowerCase()}));
+  price:money(p.cur,p.precio), s:na(p.nom)}));
 function renderResults(){
   const cat=document.getElementById('catSel').value;
-  const q=(document.getElementById('buscar').value||'').toLowerCase().trim();
+  const q=na(document.getElementById('buscar').value||'').trim();
   const res=CATALOG.filter(x=>(cat==='all'||x.cat===cat)&&(!q||x.s.includes(q)));
   const box=document.getElementById('resultados');
   if(!res.length){ box.innerHTML='<div class="resnone">Sin resultados.</div>'; return; }
@@ -228,15 +231,15 @@ function renderResults(){
 }
 function addItem(t,idx){
   if(t==='e'){ const e=DATA.esencias[idx];
-    lines.push({type:'e', desc:e.nom+' (cód. '+e.cod+')', uni:'L', cant:1, cur:'USD', tier:'min', manual:false, pmin:toNum(e.min), pmay:toNum(e.may||e.min), precio:toNum(e.min)});
+    lines.push({type:'e', desc:e.nom+' (cód. '+e.cod+')', uni:'L', cant:1, frag:'', cur:'USD', tier:'min', manual:false, pmin:toNum(e.min), pmay:toNum(e.may||e.min), precio:toNum(e.min)});
   } else if(t==='m'){ const m=DATA.mp7[idx];
-    lines.push({type:'m', desc:m.nom, uni:m.uni, cant:1, cur:m.cur||'USD', tiers:m.tiers, ti:0, precio:m.tiers[0].p});
+    lines.push({type:'m', desc:m.nom, uni:m.uni, cant:1, frag:'', cur:m.cur||'USD', tiers:m.tiers, ti:0, precio:m.tiers[0].p});
   } else { const p=PASTAS[idx];
-    lines.push({type:'p', desc:p.nom, uni:'', cant:1, cur:p.cur, precio:p.precio});
+    lines.push({type:'p', desc:p.nom, uni:'', cant:1, frag:'', cur:p.cur, precio:p.precio});
   }
   renderLines(); render();
 }
-function addBlank(){ lines.push({type:'x', desc:'', uni:'', cant:1, cur:'$', precio:0}); renderLines(); render(); }
+function addBlank(){ lines.push({type:'x', desc:'', uni:'', cant:1, frag:'', cur:'$', precio:0}); renderLines(); render(); }
 function removeLine(i){ lines.splice(i,1); renderLines(); render(); }
 function upd(i,f,val){
   const L=lines[i];
@@ -253,6 +256,7 @@ function upd(i,f,val){
   else if(f==='ti'){ L.ti=+val; L.precio=L.tiers[+val].p;
     const ln=document.querySelectorAll('#linesBox .line')[i]; if(ln) ln.querySelector('.f-pre').value=L.precio; }
   else if(f==='cur'){ L.cur=val; }
+  else if(f==='frag'){ L.frag=val; }
   render();
 }
 function renderLines(){
@@ -270,6 +274,7 @@ function renderLines(){
     }
     return `<div class="line">
       <input class="desc" value="${(L.desc||'').replace(/"/g,'&quot;')}" oninput="upd(${i},'desc',this.value)" placeholder="Descripción">
+      <input class="frg" value="${(L.frag||'').replace(/"/g,'&quot;')}" oninput="upd(${i},'frag',this.value)" placeholder="Fragancia / aroma (opcional)">
       <div class="r2">
         <div><span class="cap">Cant</span><input class="f-cant" type="number" step="0.1" min="0" value="${L.cant}" oninput="upd(${i},'cant',this.value)"></div>
         ${mid}
@@ -295,7 +300,8 @@ function render(){
       const puP=c==='USD'?precio*d:precio; const subP=c==='USD'?sub*d:sub;
       const cantTxt=(cant%1===0?String(cant):String(cant).replace('.',','));
       const ref=c==='USD'?`<div style="font-size:10px;color:#94a3b8;margin-top:2px">USD ${fmt(precio)} c/u · dólar ${fmtP(d)}</div>`:'';
-      return `<tr><td class="c">${cantTxt}</td><td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${ref}</td>
+      const fg=(L.frag||'').trim()?`<div style="font-size:11.5px;color:var(--greenD);font-weight:700;margin-top:2px">Fragancia: ${String(L.frag).trim().replace(/</g,'&lt;')}</div>`:'';
+      return `<tr><td class="c">${cantTxt}</td><td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${fg}${ref}</td>
         <td class="r">$ ${fmtP(puP)}</td><td class="r tot">$ ${fmtP(subP)}</td></tr>`; }).join(''); }
   const totPesos=tARS + tUSD*d;
   const parts=[];
