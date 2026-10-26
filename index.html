@@ -37,9 +37,10 @@
   .line input,.line select{padding:6px 6px;border:1px solid var(--bord);border-radius:6px;font-size:12px;width:100%;background:#fff}
   .line .desc{margin-bottom:6px;font-weight:600}
   .line .frg{margin-bottom:6px;border-color:#bbf7d0;background:#f0fdf4}
-  .line .r2{display:grid;grid-template-columns:44px 1fr 46px 66px 22px;gap:4px;align-items:end}
+  .line .r2{display:grid;grid-template-columns:36px 1fr 40px 54px 22px 24px;gap:3px;align-items:end}
   .line .r2 .cap{font-size:8px;text-transform:uppercase;color:var(--gray);text-align:center;display:block;margin-bottom:1px}
   .line .rem{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;height:30px;font-weight:700;align-self:end}
+  .line .sav{background:#dcfce7;color:#16a34a;border:none;border-radius:6px;height:30px;cursor:pointer;align-self:end}
   .actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}.actions .btn{flex:1;min-width:120px}
   .hint{font-size:11px;color:var(--gray);margin-top:10px;line-height:1.5}
   .stage{display:flex;justify-content:center}
@@ -120,11 +121,13 @@
       <div class="fld"><label>CUIT</label><input id="cuit" value="20-40749969-8" oninput="render()"></div>
     </div>
     <div class="fld"><label>Valor del dólar (para total en pesos)</label><input id="dolar" type="number" value="1535" oninput="render()" style="width:150px"></div>
+    <div class="fld"><label style="display:flex;align-items:center;gap:7px;text-transform:none;font-size:13px;color:var(--graf)"><input type="checkbox" id="conv" checked onchange="render()" style="width:auto;margin:0"> Convertir el total a pesos</label></div>
     <div class="fld" style="margin-top:8px">
       <label>Agregar producto</label>
       <select id="catSel" onchange="renderResults()" style="margin-bottom:6px">
         <option value="all">Todas las categorías</option>
         <option value="p">Pastas y kits (pesos)</option>
+        <option value="c">Mis productos (guardados)</option>
         <option value="e">Esencias (fragancias)</option>
         <option value="m">Materias primas (MP8)</option>
       </select>
@@ -148,7 +151,7 @@
       </div>
       <div class="b-meta"><div><span class="lbl">Cliente:</span><span class="val" id="bCliente">—</span></div><div><span class="lbl">Fecha:</span><span class="val" id="bFecha">—</span></div></div>
       <table class="items"><thead><tr><th class="c">Cant.</th><th>Descripción</th><th class="r">P. Unitario</th><th class="r">Total</th></tr></thead><tbody id="bBody"></tbody></table>
-      <div class="b-foot"><div class="ped">PEDIDO N° <span id="bPed">1</span></div><div style="text-align:right"><span class="totlbl">IMPORTE A TRANSFERIR (PESOS)</span><span class="totval" id="bTotal">$ 0</span><div id="bSub" style="font-size:11px;color:var(--gray);margin-top:4px;font-weight:600"></div></div></div>
+      <div class="b-foot"><div class="ped">PEDIDO N° <span id="bPed">1</span></div><div style="text-align:right"><span class="totlbl" id="bTotlbl">IMPORTE A TRANSFERIR (PESOS)</span><span class="totval" id="bTotal">$ 0</span><div id="bSub" style="font-size:11px;color:var(--gray);margin-top:4px;font-weight:600"></div></div></div>
       <div class="b-strip"></div>
     </div>
   </div>
@@ -212,23 +215,30 @@ const PASTAS=[
 ].map(x=>({nom:x[0],precio:x[1],cur:'$'}));
 PASTAS.push({nom:'SUAVITEK — pasta suavizante para 1000 lts',precio:120,cur:'USD'});
 PASTAS.push({nom:'Cuñete reforzado (envase) — para 50 lts',precio:8500,cur:'$'});
+let MIS=[]; try{MIS=JSON.parse(localStorage.getItem('alq_custom')||'[]');}catch(e){MIS=[];}
 
 // ----- catálogo buscable -----
-const CATALOG=[];
-DATA.esencias.forEach((e,i)=>CATALOG.push({type:'e',idx:i,cat:'e',nom:e.nom,extra:e.cod,
-  price:`x lt USD ${e.min}`, s:na(e.nom+' '+e.cod)}));
-DATA.mp7.forEach((m,i)=>CATALOG.push({type:'m',idx:i,cat:'m',nom:m.nom,extra:m.uni,
-  price:money(m.cur||'USD',m.mp7), s:na(m.nom)}));
-PASTAS.forEach((p,i)=>CATALOG.push({type:'p',idx:i,cat:'p',nom:p.nom,extra:'',
-  price:money(p.cur,p.precio), s:na(p.nom)}));
+let CATALOG=[];
+function buildCatalog(){
+  CATALOG=[];
+  DATA.esencias.forEach((e,i)=>CATALOG.push({type:'e',idx:i,cat:'e',nom:e.nom,extra:e.cod,
+    price:`x lt USD ${e.min}`, s:na(e.nom+' '+e.cod)}));
+  DATA.mp7.forEach((m,i)=>CATALOG.push({type:'m',idx:i,cat:'m',nom:m.nom,extra:m.uni,
+    price:money(m.cur||'USD',m.mp7), s:na(m.nom)}));
+  PASTAS.forEach((p,i)=>CATALOG.push({type:'p',idx:i,cat:'p',nom:p.nom,extra:'',
+    price:money(p.cur,p.precio), s:na(p.nom)}));
+  MIS.forEach((p,i)=>CATALOG.push({type:'c',idx:i,cat:'c',nom:p.nom,extra:'mío',
+    price:money(p.cur,p.precio), s:na(p.nom)}));
+}
+buildCatalog();
 function renderResults(){
   const cat=document.getElementById('catSel').value;
   const q=na(document.getElementById('buscar').value||'').trim();
   const res=CATALOG.filter(x=>(cat==='all'||x.cat===cat)&&(!q||x.s.includes(q)));
   const box=document.getElementById('resultados');
   if(!res.length){ box.innerHTML='<div class="resnone">Sin resultados.</div>'; return; }
-  box.innerHTML=res.slice(0,60).map(x=>`<div class="resitem" onclick="addItem('${x.type}',${x.idx})">
-      <span>${x.nom} <small>${x.extra}</small></span><span class="p">${x.price}</span></div>`).join('')
+  box.innerHTML=res.slice(0,60).map(x=>{ const del=x.cat==='c'?` <b onclick="event.stopPropagation();delCustom(${x.idx})" style="color:#b91c1c;cursor:pointer;margin-left:8px" title="Quitar de mis productos">✕</b>`:'';
+      return `<div class="resitem" onclick="addItem('${x.type}',${x.idx})"><span>${x.nom} <small>${x.extra}</small></span><span class="p">${x.price}${del}</span></div>`; }).join('')
     + (res.length>60?`<div class="resnone">…y ${res.length-60} más — afiná la búsqueda.</div>`:'');
 }
 function addItem(t,idx){
@@ -236,12 +246,19 @@ function addItem(t,idx){
     lines.push({type:'e', desc:e.nom+' (cód. '+e.cod+')', uni:'L', cant:1, frag:'', cur:'USD', tier:'min', manual:false, pmin:toNum(e.min), pmay:toNum(e.may||e.min), precio:toNum(e.min)});
   } else if(t==='m'){ const m=DATA.mp7[idx];
     lines.push({type:'m', desc:m.nom, uni:m.uni, cant:1, frag:'', cur:m.cur||'USD', tiers:m.tiers, ti:0, precio:m.tiers[0].p});
-  } else { const p=PASTAS[idx];
+  } else if(t==='p'){ const p=PASTAS[idx];
     lines.push({type:'p', desc:p.nom, uni:'', cant:1, frag:'', cur:p.cur, precio:p.precio});
+  } else { const p=MIS[idx];
+    lines.push({type:'c', desc:p.nom, uni:'', cant:1, frag:'', cur:p.cur, precio:p.precio});
   }
   renderLines(); render();
 }
 function addBlank(){ lines.push({type:'x', desc:'', uni:'', cant:1, frag:'', cur:'$', precio:0}); renderLines(); render(); }
+function saveCustom(i){ const L=lines[i]; if(!L||!((L.desc||'').trim())){ alert('Ponele una descripción al producto antes de guardar.'); return; }
+  MIS.push({nom:(L.desc||'').trim(), precio:Number(L.precio)||0, cur:L.cur||'$'});
+  try{ localStorage.setItem('alq_custom',JSON.stringify(MIS)); }catch(e){}
+  buildCatalog(); renderResults(); alert('✔ Guardado en "Mis productos".'); }
+function delCustom(idx){ MIS.splice(idx,1); try{ localStorage.setItem('alq_custom',JSON.stringify(MIS)); }catch(e){} buildCatalog(); renderResults(); }
 function removeLine(i){ lines.splice(i,1); renderLines(); render(); }
 function upd(i,f,val){
   const L=lines[i];
@@ -282,6 +299,7 @@ function renderLines(){
         ${mid}
         <div><span class="cap">Mon</span><select class="f-cur" onchange="upd(${i},'cur',this.value)"><option ${L.cur!=='USD'?'selected':''}>$</option><option ${L.cur==='USD'?'selected':''}>USD</option></select></div>
         <div><span class="cap">P.Unit</span><input class="f-pre" type="number" step="0.01" value="${L.precio}" oninput="upd(${i},'precio',this.value)"></div>
+        <button class="sav" onclick="saveCustom(${i})" title="Guardar en mi lista">💾</button>
         <button class="rem" onclick="removeLine(${i})">✕</button>
       </div></div>`;
   }).join('');
@@ -299,20 +317,26 @@ function render(){
   else { body.innerHTML=lines.map(L=>{
       const c=L.cur||'$'; const cant=Number(L.cant)||0; const precio=Number(L.precio)||0; const sub=cant*precio;
       if(c==='USD') tUSD+=sub; else tARS+=sub;
-      const puP=c==='USD'?precio*d:precio; const subP=c==='USD'?sub*d:sub;
       const cantTxt=(cant%1===0?String(cant):String(cant).replace('.',','));
-      const ref=c==='USD'?`<div style="font-size:10px;color:#94a3b8;margin-top:2px">USD ${fmt(precio)} c/u · dólar ${fmtP(d)}</div>`:'';
       const fg=(L.frag||'').trim()?`<div style="font-size:11.5px;color:var(--greenD);font-weight:700;margin-top:2px">Fragancia: ${String(L.frag).trim().replace(/</g,'&lt;')}</div>`:'';
-      return `<tr><td class="c">${cantTxt}</td><td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${fg}${ref}</td>
-        <td class="r">$ ${fmtP(puP)}</td><td class="r tot">$ ${fmtP(subP)}</td></tr>`; }).join(''); }
-  const totPesos=tARS + tUSD*d;
+      return `<tr><td class="c">${cantTxt}</td><td><div class="pname">${(L.desc||'').replace(/</g,'&lt;')}</div>${fg}</td>
+        <td class="r">${money(c,precio)}</td><td class="r tot">${money(c,sub)}</td></tr>`; }).join(''); }
+  const conv=document.getElementById('conv')?document.getElementById('conv').checked:true;
   const parts=[];
-  if(tARS) parts.push('Pesos: $ '+fmtP(tARS));
-  if(tUSD) parts.push('USD: '+fmt(tUSD));
-  if(tUSD) parts.push('Dólar: $ '+fmtP(d));
+  if(conv && d>0){
+    if(tARS) parts.push('Pesos: $ '+fmtP(tARS));
+    if(tUSD) parts.push('USD: '+fmt(tUSD));
+    if(tUSD) parts.push('Dólar: $ '+fmtP(d));
+    document.getElementById('bTotlbl').textContent='IMPORTE A TRANSFERIR (PESOS)';
+    document.getElementById('bTotal').textContent='$ '+fmtP(tARS + tUSD*d);
+  } else {
+    document.getElementById('bTotlbl').textContent='TOTAL';
+    if(tUSD && tARS){ document.getElementById('bTotal').textContent='USD '+fmt(tUSD); parts.push('+ $ '+fmtP(tARS)+' (pesos)'); }
+    else if(tUSD){ document.getElementById('bTotal').textContent='USD '+fmt(tUSD); }
+    else { document.getElementById('bTotal').textContent='$ '+fmtP(tARS); }
+  }
   document.getElementById('bSub').textContent=parts.join('   ·   ');
-  document.getElementById('bTotal').textContent='$ '+fmtP(totPesos);
-  try{ localStorage.setItem('alq_mp',JSON.stringify({v:document.getElementById('vendedor').value,c:document.getElementById('cuit').value,p:document.getElementById('pedido').value,d:document.getElementById('dolar').value})); }catch(e){}
+  try{ localStorage.setItem('alq_mp',JSON.stringify({v:document.getElementById('vendedor').value,c:document.getElementById('cuit').value,p:document.getElementById('pedido').value,d:document.getElementById('dolar').value,conv:(document.getElementById('conv')?document.getElementById('conv').checked:true)})); }catch(e){}
 }
 function limpiar(){ lines=[]; document.getElementById('cliente').value=''; const p=document.getElementById('pedido'); p.value=(parseInt(p.value)||0)+1; renderLines(); render(); }
 function imprimir(){
@@ -372,7 +396,7 @@ function showTab(t){
   document.getElementById('fecha').value=new Date().toISOString().slice(0,10);
   try{ const s=JSON.parse(localStorage.getItem('alq_mp')||'{}');
     if(s.v)document.getElementById('vendedor').value=s.v; if(s.c)document.getElementById('cuit').value=s.c;
-    if(s.p)document.getElementById('pedido').value=s.p; if(s.d)document.getElementById('dolar').value=s.d; }catch(e){}
+    if(s.p)document.getElementById('pedido').value=s.p; if(s.d)document.getElementById('dolar').value=s.d; if(s.conv===false&&document.getElementById('conv'))document.getElementById('conv').checked=false; }catch(e){}
   renderLines(); render(); renderResults();
 })();
 </script>
